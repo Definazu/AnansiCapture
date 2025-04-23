@@ -1,6 +1,26 @@
-[package]
+[workspace]
+members = ["core", "cli", "gui/src-tauri"]
+resolver = "2"
+
+[workspace.package]
 name = "AnansiCapture"
 version = "0.1.0"
-edition = "2024"
+authors = ["Definazu <inazumag@yandex.by>"]
+edition = "2021"
+license = "MIT"
+description = "Cross-platform network traffic capture and analysis suite"
+repository = "https://github.com/Definazu/AnansiCapture"
+keywords = ["pcap", "networking", "security", "analysis"]
+categories = ["network-programming", "gui", "command-line-utilities"]
 
-[dependencies]
+[workspace.dependencies]
+# Asynchronous runtime environment
+tokio = { version = "1.0", features = ["rt"] }
+
+# Serialization and deserialization of data
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0" 
+
+# Logging
+thiserror = "1.0"
+log = "0.4"

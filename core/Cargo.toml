@@ -1,0 +1,17 @@
+[package]
+name = "anansi-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core networking library for AnansiCapture"
+
+[build-dependencies]
+cmake = "0.1"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+thiserror.workspace = true
+
+[features]

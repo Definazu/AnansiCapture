@@ -1,0 +1,24 @@
+[package]
+name = "anansi-cli"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "Command-line interface for AnansiCapture network analysis"
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "anansi"
+path = "src/main.rs"
+
+[dependencies]
+anansi-core = { path = "../core" }
+tokio = { workspace = true, features = ["full"] }
+clap = { version = "4.5", features = ["derive", "env"] }
+serde_json.workspace = true
+thiserror.workspace = true
+log.workspace = true
+anyhow = "1.0"
+tabled = { version = "0.14", features = ["serde"] }
+
+[features]
