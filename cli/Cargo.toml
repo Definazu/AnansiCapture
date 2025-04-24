@@ -20,5 +20,3 @@ thiserror.workspace = true
 log.workspace = true
 anyhow = "1.0"
 tabled = { version = "0.14", features = ["serde"] }
-
-[features]

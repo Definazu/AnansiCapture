@@ -11,7 +11,9 @@ cmake = "0.1"
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
 thiserror.workspace = true
 
-[features]
+pcap = "0.8"
+async-trait = "0.1"
+futures = "0.3"
