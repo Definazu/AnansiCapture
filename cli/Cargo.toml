@@ -13,10 +13,12 @@ path = "src/main.rs"
 
 [dependencies]
 anansi-core = { path = "../core" }
-tokio = { workspace = true, features = ["full"] }
-clap = { version = "4.5", features = ["derive", "env"] }
+tokio = { workspace = true, features = ["full", "rt-multi-thread", "signal"] }
+clap = { version = "4.0", features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true
 log.workspace = true
 anyhow = "1.0"
-tabled = { version = "0.14", features = ["serde"] }
+async-trait = "0.1"
+futures = "0.3"
+
