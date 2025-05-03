@@ -17,3 +17,5 @@ thiserror = "1.0"
 log = "0.4"
 env_logger = "0.10"
 uuid = { version = "1.7", features = ["v4"] }
+colored = "2.0"
+anyhow = "1.0"
