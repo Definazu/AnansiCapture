@@ -11,6 +11,7 @@ mod dhcp;
 mod http;
 mod tls;
 mod igmp;
+mod smb;
 
 pub use tcp::TcpProcessor;
 pub use udp::UdpProcessor;
@@ -25,10 +26,13 @@ pub use dhcp::DhcpProcessor;
 pub use http::HttpProcessor;
 pub use tls::TlsProcessor;
 pub use igmp::IgmpProcessor;
+pub use smb::SmbProcessor;
 
 use chrono::Local;
 use colored::*;
 use pnet::packet::Packet;
+use pnet::packet::ethernet::EtherTypes;
+use dns_parser;
 
 pub struct PacketInfo {
     pub timestamp: String,
@@ -41,59 +45,78 @@ pub struct PacketInfo {
 
 pub struct PacketProcessor {
     debug_mode: bool,
-    tcp: TcpProcessor,
-    udp: UdpProcessor,
-    icmp: IcmpProcessor,
-    icmpv6: Icmpv6Processor,
-    ipv4: Ipv4Processor,
-    ipv6: Ipv6Processor,
-    ethernet: EthernetProcessor,
-    arp: ArpProcessor,
-    dns: DnsProcessor,
-    dhcp: DhcpProcessor,
-    http: HttpProcessor,
-    tls: TlsProcessor,
-    igmp: IgmpProcessor,
+    tcp_processor: TcpProcessor,
+    udp_processor: UdpProcessor,
+    icmp_processor: IcmpProcessor,
+    icmpv6_processor: icmpv6::Icmpv6Processor,
+    ipv4_processor: ipv4::Ipv4Processor,
+    ipv6_processor: ipv6::Ipv6Processor,
+    ethernet_processor: ethernet::EthernetProcessor,
+    arp_processor: ArpProcessor,
+    dns_processor: DnsProcessor,
+    dhcp_processor: DhcpProcessor,
+    http_processor: HttpProcessor,
+    tls_processor: TlsProcessor,
+    igmp_processor: IgmpProcessor,
+    smb_processor: SmbProcessor,
 }
 
 impl PacketProcessor {
     pub fn new(debug_mode: bool) -> Self {
         Self {
             debug_mode,
-            tcp: TcpProcessor::new(),
-            udp: UdpProcessor::new(),
-            icmp: IcmpProcessor::new(),
-            icmpv6: Icmpv6Processor::new(),
-            ipv4: Ipv4Processor::new(),
-            ipv6: Ipv6Processor::new(),
-            ethernet: EthernetProcessor::new(),
-            arp: ArpProcessor::new(),
-            dns: DnsProcessor::new(),
-            dhcp: DhcpProcessor::new(),
-            http: HttpProcessor::new(),
-            tls: TlsProcessor::new(),
-            igmp: IgmpProcessor::new(),
+            tcp_processor: TcpProcessor::new(),
+            udp_processor: UdpProcessor::new(),
+            icmp_processor: IcmpProcessor::new(),
+            icmpv6_processor: icmpv6::Icmpv6Processor::new(),
+            ipv4_processor: ipv4::Ipv4Processor::new(),
+            ipv6_processor: ipv6::Ipv6Processor::new(),
+            ethernet_processor: ethernet::EthernetProcessor::new(),
+            arp_processor: ArpProcessor::new(),
+            dns_processor: DnsProcessor::new(),
+            dhcp_processor: DhcpProcessor::new(),
+            http_processor: HttpProcessor::new(),
+            tls_processor: TlsProcessor::new(),
+            igmp_processor: IgmpProcessor::new(),
+            smb_processor: SmbProcessor::new(),
         }
     }
 
     pub fn process_packet(&self, packet: &pcap::Packet) -> PacketInfo {
         let timestamp = Local::now().format("%H:%M:%S%.3f").to_string();
-        let ethernet = self.ethernet.process(packet.data).unwrap();
+        let ethernet = self.ethernet_processor.process(packet.data).unwrap();
         
         let (source_ip, destination_ip, protocol, details) = match ethernet.get_ethertype() {
-            pnet::packet::ethernet::EtherTypes::Ipv4 => {
-                let ipv4 = self.ipv4.process(ethernet.payload()).unwrap();
+            EtherTypes::Ipv4 => {
+                let ipv4 = self.ipv4_processor.process(ethernet.payload()).unwrap();
                 let source = ipv4.get_source();
                 let destination = ipv4.get_destination();
                 
                 let (protocol, details) = match ipv4.get_next_level_protocol() {
                     pnet::packet::ip::IpNextHeaderProtocols::Tcp => {
-                        let tcp = self.tcp.process(ipv4.payload()).unwrap();
+                        let tcp = self.tcp_processor.process(ipv4.payload()).unwrap();
                         let payload = tcp.payload();
                         
-                        // Проверка на HTTP
+                        // Check for SMB traffic (port 445)
+                        if tcp.get_destination() == 445 || tcp.get_source() == 445 {
+                            if let Ok(smb) = self.smb_processor.process(payload) {
+                                return PacketInfo {
+                                    timestamp,
+                                    source_ip: source.to_string(),
+                                    destination_ip: destination.to_string(),
+                                    protocol: "SMB".to_string(),
+                                    length: packet.data.len(),
+                                    details: format!(
+                                        "SMB Packet - Command: {}",
+                                        self.smb_processor.get_command(&smb)
+                                    ),
+                                };
+                            }
+                        }
+                        
+                        // Check for HTTP traffic
                         if tcp.get_destination() == 80 || tcp.get_source() == 80 {
-                            if let Ok(http) = self.http.process(payload) {
+                            if let Ok(http) = self.http_processor.process(payload) {
                                 return PacketInfo {
                                     timestamp,
                                     source_ip: source.to_string(),
@@ -106,20 +129,6 @@ impl PacketProcessor {
                                         http.get_path(),
                                         http.get_host()
                                     ),
-                                };
-                            }
-                        }
-                        
-                        // Проверка на TLS
-                        if tcp.get_destination() == 443 || tcp.get_source() == 443 {
-                            if let Ok(tls) = self.tls.process(payload) {
-                                return PacketInfo {
-                                    timestamp,
-                                    source_ip: source.to_string(),
-                                    destination_ip: destination.to_string(),
-                                    protocol: "TLS".to_string(),
-                                    length: packet.data.len(),
-                                    details: "TLS Handshake".to_string(),
                                 };
                             }
                         }
@@ -141,12 +150,12 @@ impl PacketProcessor {
                         )
                     }
                     pnet::packet::ip::IpNextHeaderProtocols::Udp => {
-                        let udp = self.udp.process(ipv4.payload()).unwrap();
+                        let udp = self.udp_processor.process(ipv4.payload()).unwrap();
                         let payload = udp.payload();
                         
-                        // Проверка на DNS
+                        // Check for DNS traffic
                         if udp.get_destination() == 53 || udp.get_source() == 53 {
-                            if let Ok(dns) = self.dns.process(payload) {
+                            if let Ok(dns) = self.dns_processor.process(payload) {
                                 return PacketInfo {
                                     timestamp,
                                     source_ip: source.to_string(),
@@ -154,28 +163,25 @@ impl PacketProcessor {
                                     protocol: "DNS".to_string(),
                                     length: packet.data.len(),
                                     details: format!(
-                                        "Query: {}, Answer: {}",
-                                        self.dns.get_query_type(&dns),
-                                        self.dns.get_answer_type(&dns)
-                                    ),
-                                };
-                            }
-                        }
-                        
-                        // Проверка на DHCP
-                        if udp.get_destination() == 67 || udp.get_destination() == 68 {
-                            if let Ok(dhcp) = self.dhcp.process(payload) {
-                                return PacketInfo {
-                                    timestamp,
-                                    source_ip: source.to_string(),
-                                    destination_ip: destination.to_string(),
-                                    protocol: "DHCP".to_string(),
-                                    length: packet.data.len(),
-                                    details: format!(
-                                        "Type: {}, Client: {}, Server: {}",
-                                        dhcp.get_message_type(),
-                                        dhcp.get_client_ip(),
-                                        dhcp.get_server_ip()
+                                        "Query: {}, Type: {}",
+                                        dns.header.query,
+                                        dns.questions.first().map_or("Unknown", |q| match q.qtype {
+                                            dns_parser::QueryType::A => "A",
+                                            dns_parser::QueryType::NS => "NS",
+                                            dns_parser::QueryType::CNAME => "CNAME",
+                                            dns_parser::QueryType::SOA => "SOA",
+                                            dns_parser::QueryType::PTR => "PTR",
+                                            dns_parser::QueryType::MX => "MX",
+                                            dns_parser::QueryType::TXT => "TXT",
+                                            dns_parser::QueryType::AAAA => "AAAA",
+                                            dns_parser::QueryType::SRV => "SRV",
+                                            dns_parser::QueryType::AXFR => "AXFR",
+                                            dns_parser::QueryType::All => "ALL",
+                                            dns_parser::QueryType::WKS => "WKS",
+                                            dns_parser::QueryType::HINFO => "HINFO",
+                                            dns_parser::QueryType::MINFO => "MINFO",
+                                            _ => "Unknown",
+                                        })
                                     ),
                                 };
                             }
@@ -194,21 +200,11 @@ impl PacketProcessor {
                         )
                     }
                     pnet::packet::ip::IpNextHeaderProtocols::Icmp => {
-                        let icmp = self.icmp.process(ipv4.payload()).unwrap();
+                        let icmp = self.icmp_processor.process(ipv4.payload()).unwrap();
                         (
                             "ICMP".to_string(),
                             format!(
                                 "ICMP, length {}",
-                                ipv4.payload().len()
-                            )
-                        )
-                    }
-                    pnet::packet::ip::IpNextHeaderProtocols::Igmp => {
-                        let igmp = self.igmp.process(ipv4.payload()).unwrap();
-                        (
-                            "IGMP".to_string(),
-                            format!(
-                                "IGMP, length {}",
                                 ipv4.payload().len()
                             )
                         )
@@ -221,14 +217,14 @@ impl PacketProcessor {
                 
                 (source.to_string(), destination.to_string(), protocol, details)
             }
-            pnet::packet::ethernet::EtherTypes::Ipv6 => {
-                let ipv6 = self.ipv6.process(ethernet.payload()).unwrap();
+            EtherTypes::Ipv6 => {
+                let ipv6 = self.ipv6_processor.process(ethernet.payload()).unwrap();
                 let source = ipv6.get_source();
                 let destination = ipv6.get_destination();
                 
                 let (protocol, details) = match ipv6.get_next_header() {
                     pnet::packet::ip::IpNextHeaderProtocols::Tcp => {
-                        let tcp = self.tcp.process(ipv6.payload()).unwrap();
+                        let tcp = self.tcp_processor.process(ipv6.payload()).unwrap();
                         (
                             "TCP".to_string(),
                             format!(
@@ -242,7 +238,7 @@ impl PacketProcessor {
                         )
                     }
                     pnet::packet::ip::IpNextHeaderProtocols::Udp => {
-                        let _udp = self.udp.process(ipv6.payload()).unwrap();
+                        let _udp = self.udp_processor.process(ipv6.payload()).unwrap();
                         (
                             "UDP".to_string(),
                             format!(
@@ -252,7 +248,7 @@ impl PacketProcessor {
                         )
                     }
                     pnet::packet::ip::IpNextHeaderProtocols::Icmpv6 => {
-                        let _icmpv6 = self.icmpv6.process(ipv6.payload()).unwrap();
+                        let _icmpv6 = self.icmpv6_processor.process(ipv6.payload()).unwrap();
                         (
                             "ICMPv6".to_string(),
                             format!(
@@ -271,8 +267,8 @@ impl PacketProcessor {
                 
                 (source.to_string(), destination.to_string(), protocol, details)
             }
-            pnet::packet::ethernet::EtherTypes::Arp => {
-                let arp = self.arp.process(ethernet.payload()).unwrap();
+            EtherTypes::Arp => {
+                let arp = self.arp_processor.process(ethernet.payload()).unwrap();
                 let source = arp.get_sender_proto_addr().to_string();
                 let destination = arp.get_target_proto_addr().to_string();
                 (
@@ -317,6 +313,7 @@ impl PacketProcessor {
             "HTTP" => "bright_yellow",
             "TLS" => "bright_magenta",
             "IGMP" => "bright_cyan",
+            "SMB" => "bright_purple",
             _ => "white",
         };
 
