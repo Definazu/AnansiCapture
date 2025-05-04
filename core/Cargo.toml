@@ -19,3 +19,6 @@ env_logger = "0.10"
 uuid = { version = "1.7", features = ["v4"] }
 colored = "2.0"
 anyhow = "1.0"
+rustls = "0.21"  # Для TLS
+http = "0.2"     # Для HTTP
+dns-parser = "0.8"  # Для DNS
