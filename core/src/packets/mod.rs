@@ -162,27 +162,7 @@ impl PacketProcessor {
                                     destination_ip: destination.to_string(),
                                     protocol: "DNS".to_string(),
                                     length: packet.data.len(),
-                                    details: format!(
-                                        "Query: {}, Type: {}",
-                                        dns.header.query,
-                                        dns.questions.first().map_or("Unknown", |q| match q.qtype {
-                                            dns_parser::QueryType::A => "A",
-                                            dns_parser::QueryType::NS => "NS",
-                                            dns_parser::QueryType::CNAME => "CNAME",
-                                            dns_parser::QueryType::SOA => "SOA",
-                                            dns_parser::QueryType::PTR => "PTR",
-                                            dns_parser::QueryType::MX => "MX",
-                                            dns_parser::QueryType::TXT => "TXT",
-                                            dns_parser::QueryType::AAAA => "AAAA",
-                                            dns_parser::QueryType::SRV => "SRV",
-                                            dns_parser::QueryType::AXFR => "AXFR",
-                                            dns_parser::QueryType::All => "ALL",
-                                            dns_parser::QueryType::WKS => "WKS",
-                                            dns_parser::QueryType::HINFO => "HINFO",
-                                            dns_parser::QueryType::MINFO => "MINFO",
-                                            _ => "Unknown",
-                                        })
-                                    ),
+                                    details: self.dns_processor.get_query_info(&dns),
                                 };
                             }
                         }
@@ -321,16 +301,22 @@ impl PacketProcessor {
 
         if self.debug_mode {
             format!(
-                "{} {} {}",
+                "{} {} -> {} {} {} {}",
                 info.timestamp.cyan(),
+                info.source_ip,
+                info.destination_ip,
                 info.protocol.color(protocol_color),
+                info.length,
                 info.details
             )
         } else {
             format!(
-                "{} {} {}",
+                "{} {} -> {} {} {} {}",
                 info.timestamp.cyan(),
+                info.source_ip,
+                info.destination_ip,
                 info.protocol.color(protocol_color),
+                info.length,
                 info.details
             )
         }
