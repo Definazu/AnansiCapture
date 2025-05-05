@@ -204,8 +204,10 @@ impl PacketProcessor {
                         (
                             "ICMP".to_string(),
                             format!(
-                                "ICMP, length {}",
-                                ipv4.payload().len()
+                                "{} > {}: {}",
+                                source,
+                                destination,
+                                self.icmp_processor.get_icmp_type(&icmp)
                             )
                         )
                     }

@@ -67,6 +67,8 @@ impl PacketCapture {
 
         let mut capture: Capture<Inactive> = Capture::from_device(device)?;
         capture = capture.promisc(true);
+        capture = capture.immediate_mode(true);
+        capture = capture.buffer_size(1000000);
         
         let mut capture: Capture<Active> = capture.open()?;
         
