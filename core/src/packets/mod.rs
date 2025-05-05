@@ -12,6 +12,7 @@ mod http;
 mod tls;
 mod igmp;
 mod smb;
+mod ftp;
 
 pub use tcp::TcpProcessor;
 pub use udp::UdpProcessor;
@@ -27,6 +28,7 @@ pub use http::HttpProcessor;
 pub use tls::TlsProcessor;
 pub use igmp::IgmpProcessor;
 pub use smb::SmbProcessor;
+pub use ftp::FtpProcessor;
 
 use chrono::Local;
 use colored::*;
@@ -59,6 +61,7 @@ pub struct PacketProcessor {
     tls_processor: TlsProcessor,
     igmp_processor: IgmpProcessor,
     smb_processor: SmbProcessor,
+    ftp_processor: FtpProcessor,
 }
 
 impl PacketProcessor {
@@ -79,6 +82,7 @@ impl PacketProcessor {
             tls_processor: TlsProcessor::new(),
             igmp_processor: IgmpProcessor::new(),
             smb_processor: SmbProcessor::new(),
+            ftp_processor: FtpProcessor::new(),
         }
     }
 
@@ -128,6 +132,23 @@ impl PacketProcessor {
                                         http.get_method(),
                                         http.get_path(),
                                         http.get_host()
+                                    ),
+                                };
+                            }
+                        }
+                        
+                        // Check for FTP traffic (port 21)
+                        if tcp.get_destination() == 21 || tcp.get_source() == 21 {
+                            if let Ok(ftp) = self.ftp_processor.process(payload) {
+                                return PacketInfo {
+                                    timestamp,
+                                    source_ip: source.to_string(),
+                                    destination_ip: destination.to_string(),
+                                    protocol: "FTP".to_string(),
+                                    length: packet.data.len(),
+                                    details: format!(
+                                        "FTP Packet - {}",
+                                        ftp.get_command()
                                     ),
                                 };
                             }
@@ -296,6 +317,7 @@ impl PacketProcessor {
             "TLS" => "bright_magenta",
             "IGMP" => "bright_cyan",
             "SMB" => "bright_purple",
+            "FTP" => "bright_red",
             _ => "white",
         };
 
