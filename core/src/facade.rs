@@ -1,6 +1,7 @@
 use crate::capture::{PacketCapture, Observer};
 use crate::interface::{list_interfaces, format_interface_list, validate_interface};
 use crate::packets::{PacketProcessor, PacketInfo};
+use crate::observers::PcapWriter;
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -10,6 +11,7 @@ pub struct AnansiFacade {
     capture: Arc<Mutex<Option<PacketCapture>>>,
     observers: Arc<Mutex<Vec<(Uuid, Arc<dyn Observer + Send + Sync>)>>>,
     packet_processor: PacketProcessor,
+    pcap_writer: Option<Arc<PcapWriter>>,
 }
 
 impl AnansiFacade {
@@ -19,7 +21,15 @@ impl AnansiFacade {
             capture: Arc::new(Mutex::new(None)),
             observers: Arc::new(Mutex::new(Vec::new())),
             packet_processor: PacketProcessor::new(debug_mode),
+            pcap_writer: None,
         }
+    }
+
+    /// Устанавливает файл для сохранения PCAP
+    pub async fn set_pcap_output(&mut self, filename: &str) -> Result<()> {
+        let writer = PcapWriter::new(filename)?;
+        self.pcap_writer = Some(Arc::new(writer));
+        Ok(())
     }
 
     /// Запускает захват пакетов
@@ -39,6 +49,11 @@ impl AnansiFacade {
         let observers = self.observers.lock().await;
         for (_, observer) in observers.iter() {
             new_capture.add_observer(observer.clone()).await;
+        }
+
+        // Add PCAP writer if configured
+        if let Some(writer) = &self.pcap_writer {
+            new_capture.add_observer(writer.clone()).await;
         }
 
         new_capture.start().await?;

@@ -27,6 +27,9 @@ enum Commands {
         /// Enable debug mode
         #[arg(short, long)]
         debug: bool,
+        /// Output file for PCAP capture
+        #[arg(short, long)]
+        output: Option<String>,
     },
 }
 
@@ -42,10 +45,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let interfaces = facade.lock().await.list_interfaces().await?;
             println!("{}", interfaces);
         }
-        Commands::Capture { interface, filter, debug: _ } => {
+        Commands::Capture { interface, filter, debug: _, output } => {
             let facade_clone = facade.clone();
             let observer = Arc::new(PrintObserver::new(facade_clone));
             facade.lock().await.add_observer(observer).await;
+
+            // Set up PCAP output if specified
+            if let Some(output_file) = &output {
+                info!("Saving capture to PCAP file: {}", output_file);
+                facade.lock().await.set_pcap_output(output_file).await?;
+            }
 
             info!("Starting capture on interface: {}", interface);
             if let Some(filter) = &filter {

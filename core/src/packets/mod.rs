@@ -34,7 +34,6 @@ use chrono::Local;
 use colored::*;
 use pnet::packet::Packet;
 use pnet::packet::ethernet::EtherTypes;
-use dns_parser;
 
 pub struct PacketInfo {
     pub timestamp: String,
