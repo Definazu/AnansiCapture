@@ -1,4 +1,5 @@
-use pnet::packet::tcp::{TcpPacket, TcpFlags};
+use pnet::packet::tcp::{TcpPacket, TcpFlags, TcpOptionNumber};
+use pnet::packet::Packet;
 
 pub struct TcpProcessor;
 
@@ -22,5 +23,39 @@ impl TcpProcessor {
         if flags & TcpFlags::ECE != 0 { result.push('E'); }
         if flags & TcpFlags::CWR != 0 { result.push('C'); }
         result
+    }
+
+    pub fn format_tcp_info(packet: &TcpPacket) -> String {
+        let flags = Self::get_tcp_flags(packet.get_flags());
+        let seq = packet.get_sequence();
+        let ack = packet.get_acknowledgement();
+        let win = packet.get_window();
+        let len = packet.payload().len();
+        
+        // Extract timestamp values if present (they are in the options)
+        let mut tsval = 0u32;
+        let mut tsecr = 0u32;
+        
+        let options = packet.get_options();
+        for option in options {
+            if option.number == TcpOptionNumber(8) { // Timestamp option
+                if option.data.len() >= 8 {
+                    tsval = u32::from_be_bytes([option.data[0], option.data[1], option.data[2], option.data[3]]);
+                    tsecr = u32::from_be_bytes([option.data[4], option.data[5], option.data[6], option.data[7]]);
+                }
+            }
+        }
+
+        format!("{} → {} [{}] Seq={} Ack={} Win={} Len={} TSval={} TSecr={}",
+            packet.get_source(),
+            packet.get_destination(),
+            flags,
+            seq,
+            ack,
+            win,
+            len,
+            tsval,
+            tsecr
+        )
     }
 } 

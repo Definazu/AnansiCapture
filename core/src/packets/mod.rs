@@ -100,6 +100,23 @@ impl PacketProcessor {
                         let tcp = self.tcp_processor.process(ipv4.payload()).unwrap();
                         let payload = tcp.payload();
                         
+                        // Check for TLS/SSL traffic (ports 443, 465, 993, 995)
+                        if tcp.get_destination() == 443 || tcp.get_source() == 443 ||
+                           tcp.get_destination() == 465 || tcp.get_source() == 465 ||
+                           tcp.get_destination() == 993 || tcp.get_source() == 993 ||
+                           tcp.get_destination() == 995 || tcp.get_source() == 995 {
+                            if let Ok(tls) = self.tls_processor.process(payload) {
+                                return PacketInfo {
+                                    timestamp,
+                                    source_ip: source.to_string(),
+                                    destination_ip: destination.to_string(),
+                                    protocol: tls.get_version().to_string(),
+                                    length: packet.data.len(),
+                                    details: tls.format_info(),
+                                };
+                            }
+                        }
+                        
                         // Check for SMB traffic (port 445)
                         if tcp.get_destination() == 445 || tcp.get_source() == 445 {
                             if let Ok(smb) = self.smb_processor.process(payload) {
@@ -136,37 +153,9 @@ impl PacketProcessor {
                             }
                         }
                         
-                        // Check for FTP traffic (port 21)
-                        if tcp.get_destination() == 21 || tcp.get_source() == 21 {
-                            if let Ok(ftp) = self.ftp_processor.process(payload) {
-                                return PacketInfo {
-                                    timestamp,
-                                    source_ip: source.to_string(),
-                                    destination_ip: destination.to_string(),
-                                    protocol: "FTP".to_string(),
-                                    length: packet.data.len(),
-                                    details: format!(
-                                        "FTP Packet - {}",
-                                        ftp.get_command()
-                                    ),
-                                };
-                            }
-                        }
-                        
                         (
                             "TCP".to_string(),
-                            format!(
-                                "{}:{} > {}:{} Flags [{}], seq {}, ack {}, win {}, length {}",
-                                source,
-                                tcp.get_source(),
-                                destination,
-                                tcp.get_destination(),
-                                tcp.get_flags(),
-                                tcp.get_sequence(),
-                                tcp.get_acknowledgement(),
-                                tcp.get_window(),
-                                ipv4.payload().len()
-                            )
+                            TcpProcessor::format_tcp_info(&tcp)
                         )
                     }
                     pnet::packet::ip::IpNextHeaderProtocols::Udp => {
@@ -210,6 +199,19 @@ impl PacketProcessor {
                                 self.icmp_processor.get_icmp_type(&icmp)
                             )
                         )
+                    }
+                    pnet::packet::ip::IpNextHeaderProtocols::Igmp => {
+                        if let Ok(igmp) = self.igmp_processor.process(ipv4.payload()) {
+                            (
+                                "IGMPv3".to_string(),
+                                igmp.format_info()
+                            )
+                        } else {
+                            (
+                                "IGMP".to_string(),
+                                format!("Unknown IGMP packet, length {}", ipv4.payload().len())
+                            )
+                        }
                     }
                     _ => (
                         format!("Unknown({})", ipv4.get_next_level_protocol()),
@@ -271,18 +273,13 @@ impl PacketProcessor {
             }
             EtherTypes::Arp => {
                 let arp = self.arp_processor.process(ethernet.payload()).unwrap();
-                let source = arp.get_sender_proto_addr().to_string();
-                let destination = arp.get_target_proto_addr().to_string();
+                let source = format_mac(&ethernet.get_source().octets());
+                let destination = format_mac(&ethernet.get_destination().octets());
                 (
                     source,
                     destination,
                     "ARP".to_string(),
-                    format!(
-                        "ARP, {} -> {}, length {}",
-                        arp.get_sender_proto_addr(),
-                        arp.get_target_proto_addr(),
-                        ethernet.payload().len()
-                    )
+                    ArpProcessor::format_arp_info(&arp)
                 )
             }
             _ => (
@@ -342,4 +339,14 @@ impl PacketProcessor {
             )
         }
     }
+}
+
+fn format_mac(mac: &[u8]) -> String {
+    if mac.iter().all(|&b| b == 0) {
+        return "Broadcast".to_string();
+    }
+    mac.iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<String>>()
+        .join(":")
 }

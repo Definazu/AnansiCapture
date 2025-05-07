@@ -37,6 +37,17 @@ impl IgmpPacket {
     pub fn get_group_address(&self) -> String {
         self.group_address.to_string()
     }
+
+    pub fn format_info(&self) -> String {
+        match self.get_type() {
+            IgmpType::MembershipQuery => format!("Membership Query, general"),
+            IgmpType::MembershipReportV1 => format!("Membership Report / Join group {}", self.get_group_address()),
+            IgmpType::MembershipReportV2 => format!("Membership Report / Join group {}", self.get_group_address()),
+            IgmpType::LeaveGroup => format!("Leave group {}", self.get_group_address()),
+            IgmpType::MembershipReportV3 => format!("Membership Report / Join group {} for any sources", self.get_group_address()),
+            IgmpType::Unknown => format!("Unknown IGMP type: {}", self.type_),
+        }
+    }
 }
 
 #[derive(Debug)]
