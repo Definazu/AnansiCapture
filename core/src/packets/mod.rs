@@ -106,57 +106,56 @@ impl PacketProcessor {
                            tcp.get_destination() == 993 || tcp.get_source() == 993 ||
                            tcp.get_destination() == 995 || tcp.get_source() == 995 {
                             if let Ok(tls) = self.tls_processor.process(payload) {
-                                return PacketInfo {
-                                    timestamp,
-                                    source_ip: source.to_string(),
-                                    destination_ip: destination.to_string(),
-                                    protocol: tls.get_version().to_string(),
-                                    length: packet.data.len(),
-                                    details: tls.format_info(),
-                                };
+                                (
+                                    "TLS".to_string(),
+                                    format!("{} - {}", tls.get_version(), tls.format_info())
+                                )
+                            } else {
+                                (
+                                    "TCP".to_string(),
+                                    TcpProcessor::format_tcp_info(&tcp)
+                                )
                             }
-                        }
-                        
-                        // Check for SMB traffic (port 445)
-                        if tcp.get_destination() == 445 || tcp.get_source() == 445 {
+                        } else if tcp.get_destination() == 445 || tcp.get_source() == 445 {
+                            // Check for SMB traffic (port 445)
                             if let Ok(smb) = self.smb_processor.process(payload) {
-                                return PacketInfo {
-                                    timestamp,
-                                    source_ip: source.to_string(),
-                                    destination_ip: destination.to_string(),
-                                    protocol: "SMB".to_string(),
-                                    length: packet.data.len(),
-                                    details: format!(
+                                (
+                                    "SMB".to_string(),
+                                    format!(
                                         "SMB Packet - Command: {}",
                                         self.smb_processor.get_command(&smb)
-                                    ),
-                                };
+                                    )
+                                )
+                            } else {
+                                (
+                                    "TCP".to_string(),
+                                    TcpProcessor::format_tcp_info(&tcp)
+                                )
                             }
-                        }
-                        
-                        // Check for HTTP traffic
-                        if tcp.get_destination() == 80 || tcp.get_source() == 80 {
+                        } else if tcp.get_destination() == 80 || tcp.get_source() == 80 {
+                            // Check for HTTP traffic
                             if let Ok(http) = self.http_processor.process(payload) {
-                                return PacketInfo {
-                                    timestamp,
-                                    source_ip: source.to_string(),
-                                    destination_ip: destination.to_string(),
-                                    protocol: "HTTP".to_string(),
-                                    length: packet.data.len(),
-                                    details: format!(
+                                (
+                                    "HTTP".to_string(),
+                                    format!(
                                         "{} {} {}",
                                         http.get_method(),
                                         http.get_path(),
                                         http.get_host()
-                                    ),
-                                };
+                                    )
+                                )
+                            } else {
+                                (
+                                    "TCP".to_string(),
+                                    TcpProcessor::format_tcp_info(&tcp)
+                                )
                             }
+                        } else {
+                            (
+                                "TCP".to_string(),
+                                TcpProcessor::format_tcp_info(&tcp)
+                            )
                         }
-                        
-                        (
-                            "TCP".to_string(),
-                            TcpProcessor::format_tcp_info(&tcp)
-                        )
                     }
                     pnet::packet::ip::IpNextHeaderProtocols::Udp => {
                         let udp = self.udp_processor.process(ipv4.payload()).unwrap();
@@ -165,28 +164,36 @@ impl PacketProcessor {
                         // Check for DNS traffic
                         if udp.get_destination() == 53 || udp.get_source() == 53 {
                             if let Ok(dns) = self.dns_processor.process(payload) {
-                                return PacketInfo {
-                                    timestamp,
-                                    source_ip: source.to_string(),
-                                    destination_ip: destination.to_string(),
-                                    protocol: "DNS".to_string(),
-                                    length: packet.data.len(),
-                                    details: self.dns_processor.get_query_info(&dns),
-                                };
+                                (
+                                    "DNS".to_string(),
+                                    self.dns_processor.get_query_info(&dns)
+                                )
+                            } else {
+                                (
+                                    "UDP".to_string(),
+                                    format!(
+                                        "{}:{} > {}:{} UDP, length {}",
+                                        source,
+                                        udp.get_source(),
+                                        destination,
+                                        udp.get_destination(),
+                                        ipv4.payload().len()
+                                    )
+                                )
                             }
-                        }
-                        
-                        (
-                            "UDP".to_string(),
-                            format!(
-                                "{}:{} > {}:{} UDP, length {}",
-                                source,
-                                udp.get_source(),
-                                destination,
-                                udp.get_destination(),
-                                ipv4.payload().len()
+                        } else {
+                            (
+                                "UDP".to_string(),
+                                format!(
+                                    "{}:{} > {}:{} UDP, length {}",
+                                    source,
+                                    udp.get_source(),
+                                    destination,
+                                    udp.get_destination(),
+                                    ipv4.payload().len()
+                                )
                             )
-                        )
+                        }
                     }
                     pnet::packet::ip::IpNextHeaderProtocols::Icmp => {
                         let icmp = self.icmp_processor.process(ipv4.payload()).unwrap();
@@ -203,7 +210,7 @@ impl PacketProcessor {
                     pnet::packet::ip::IpNextHeaderProtocols::Igmp => {
                         if let Ok(igmp) = self.igmp_processor.process(ipv4.payload()) {
                             (
-                                "IGMPv3".to_string(),
+                                "IGMP".to_string(),
                                 igmp.format_info()
                             )
                         } else {
@@ -317,27 +324,15 @@ impl PacketProcessor {
             _ => "white",
         };
 
-        if self.debug_mode {
-            format!(
-                "{} {} -> {} {} {} {}",
-                info.timestamp.cyan(),
-                info.source_ip,
-                info.destination_ip,
-                info.protocol.color(protocol_color),
-                info.length,
-                info.details
-            )
-        } else {
-            format!(
-                "{} {} -> {} {} {} {}",
-                info.timestamp.cyan(),
-                info.source_ip,
-                info.destination_ip,
-                info.protocol.color(protocol_color),
-                info.length,
-                info.details
-            )
-        }
+        format!(
+            "{} {} -> {} {} {} {}",
+            info.timestamp.cyan(),
+            info.source_ip,
+            info.destination_ip,
+            info.protocol.color(protocol_color),
+            info.length,
+            info.details
+        )
     }
 }
 
