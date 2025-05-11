@@ -1,5 +1,5 @@
 use crate::capture::{PacketCapture, Observer};
-use crate::interface::{list_interfaces, format_interface_list, validate_interface};
+use crate::interface::{list_interfaces, get_interface_names, validate_interface};
 use crate::packets::{PacketProcessor, PacketInfo};
 use crate::observers::PcapWriter;
 use anyhow::Result;
@@ -83,9 +83,8 @@ impl AnansiFacade {
         observers.retain(|(observer_id, _)| *observer_id != id);
     }
 
-    pub async fn list_interfaces(&self) -> Result<String> {
-        let interfaces = list_interfaces()?;
-        Ok(format_interface_list(&interfaces))
+    pub async fn list_interfaces(&self) -> Result<Vec<String>> {
+        get_interface_names()
     }
 
     pub async fn validate_interface(&self, interface_name: &str) -> Result<bool> {

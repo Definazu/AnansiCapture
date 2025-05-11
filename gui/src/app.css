@@ -4,15 +4,31 @@
   --background-color: #1A1919;
   --toolbar-bg: #292929;
   --welcome-text-bg: #40C057;
+  --primary-color: #40C057;
 }
 
 body {
   margin: 0;
-  padding: 0;
-  background-color: var(--background-color);
-  font-family: 'Jolly Lodger', cursive;
+  padding: 20px;
+  background-color: #1a1a1a;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
   min-height: 100vh;
   position: relative;
+  color: var(--primary-color);
+}
+
+.topbar {
+  width: 100%;
+  max-width: 1920px;
+  height: 59px;
+  background: var(--toolbar-bg);
+  border-radius: 7px;
+  position: fixed;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0 auto;
 }
 
 .toolbar {
@@ -22,7 +38,7 @@ body {
   background: var(--toolbar-bg);
   border-radius: 7px;
   position: fixed;
-  top: 50px;
+  top: 90px;
   left: 50%;
   transform: translateX(-50%);
   margin: 0 auto;
@@ -32,12 +48,13 @@ body {
   width: 628px;
   height: 245px;
   position: absolute;
-  top: 50%;
+  top: 30%;
   left: 50%;
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: 'Jolly Lodger', cursive;
   font-size: 96px;
   line-height: 100%;
   letter-spacing: 15%;
@@ -47,8 +64,13 @@ body {
 }
 
 @media screen and (max-width: 1920px) {
+  
+  .topbar {
+    width: 100%;
+  }
+  
   .toolbar {
-    width: 90%;
+    width: 100%;
   }
   
   .welcome-text {

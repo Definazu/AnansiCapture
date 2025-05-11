@@ -21,6 +21,12 @@ pub fn list_interfaces() -> Result<Vec<NetworkInterface>> {
         .collect())
 }
 
+/// Returns a vector of interface names
+pub fn get_interface_names() -> Result<Vec<String>> {
+    let interfaces = list_interfaces()?;
+    Ok(interfaces.into_iter().map(|i| i.name).collect())
+}
+
 /// Formats interface list for display
 pub fn format_interface_list(interfaces: &[NetworkInterface]) -> String {
     let mut output = String::new();

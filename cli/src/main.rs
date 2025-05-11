@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use log::{info, debug, warn};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use colored::Colorize;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -43,7 +44,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Commands::ListInterfaces => {
             let interfaces = facade.lock().await.list_interfaces().await?;
-            println!("{}", interfaces);
+            println!("{}", "Available interfaces:".bold().underline());
+            for interface in interfaces {
+                println!("{}", interface.bold().green());
+            }
         }
         Commands::Capture { interface, filter, debug: _, output } => {
             let facade_clone = facade.clone();
