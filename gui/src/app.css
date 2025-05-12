@@ -11,10 +11,8 @@ body {
   margin: 0;
   padding: 20px;
   background-color: #1a1a1a;
-  font-family: 'JetBrains Mono', monospace;
   font-size: 16px;
-  min-height: 100vh;
-  position: relative;
+  height: 100%;
   color: var(--primary-color);
 }
 
@@ -56,6 +54,24 @@ body {
   justify-content: center;
   font-family: 'Jolly Lodger', cursive;
   font-size: 96px;
+  line-height: 100%;
+  letter-spacing: 15%;
+  text-align: center;
+  font-weight: 400;
+  color: var(--welcome-text-bg);
+}
+.interfaces-list{
+  width: 300px;
+  height: 100px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Jolly Lodger', cursive;
+  font-size: 45px;
   line-height: 100%;
   letter-spacing: 15%;
   text-align: center;
