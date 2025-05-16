@@ -1,0 +1,43 @@
+.table-container {
+    position: absolute;
+    width: 100%;
+    top: 14%;
+    margin-left: -20px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .packet-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #949494;
+    font-size: 14px;
+  }
+
+  .packet-table th,
+  .packet-table td {
+    color: #000000;
+    background: #AFF8AB;
+    padding: 2.5px 16px;
+    text-align: left;
+    border-bottom: 1px solid #373737;
+  }
+  .packet-table td {
+    height: 5px;
+  }
+
+  .packet-table th {
+    background: #2c2c2c;
+    color: #40C057;
+    font-weight: 600;
+  }
+
+  .packet-table tr:hover {
+    background: #2c2c2c;
+  }
+
+  .protocol-cell {
+    color: #40C057;
+  }
